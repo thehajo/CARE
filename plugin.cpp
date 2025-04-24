@@ -4,22 +4,10 @@
 
 namespace logger = SKSE::log;
 
-//std::unique_ptr<RE::TESGlobal> careStr = std::make_unique<RE::TESGlobal>();
-
-
-
-//std::multimap<std::string, std::string> raceMatrix;
-//const CSimpleIniA::TKeyVal *raceMatrix;
-//CSimpleIniA iniFile;
-
-
-
-
 
 class cGlobalVariables : public RE::BSTEventSink<RE::MenuOpenCloseEvent>,
                          public RE::BSTEventSink<RE::LevelIncrease::Event>,
-                         public RE::BSTEventSink<RE::SkillIncrease::Event>,
-                         public RE::BSTEventSink<RE::TESHitEvent> { public:
+                         public RE::BSTEventSink<RE::SkillIncrease::Event>{ public:
 
     RE::TESGlobal *careStr = nullptr;
     RE::TESGlobal *careFor = nullptr;
@@ -66,15 +54,12 @@ class cGlobalVariables : public RE::BSTEventSink<RE::MenuOpenCloseEvent>,
     float baseQuestReward02Medium;
     float baseQuestReward03Large;
     float baseQuestReward04Wow;
-    int careSkillTreshold;
-    int careMaximumAttributeLevel;
+    int careSkillTreshold = 50;
+    int careMaximumAttributeLevel = 20;
     std::vector<std::string> skillAttributes;
-
-
     CSimpleIniA iniFile;
-    //const CSimpleIniA::TKeyVal *careRaceMatrix;
     std::vector<std::string> careBaseAttributes = {"9", "9", "9", "9", "9", "9", "9", "9", "9", "9"};
-    std::vector<std::string> careRaceAttributes;// = {"0", "0", "0", "0", "0", "0", "0", "0", "0", "0"};
+    std::vector<std::string> careRaceAttributes = {"0", "0", "0", "0", "0", "0", "0", "0", "0", "0"};
     std::vector<std::string> careMaleAttributes = {"1", "1", "0", "0", "1", "0", "0", "1", "0", "1"};
     std::vector<std::string> careFemaleAttributes = {"0", "0", "1", "1", "0", "1", "1", "0", "1", "0"};
     
@@ -102,34 +87,12 @@ class cGlobalVariables : public RE::BSTEventSink<RE::MenuOpenCloseEvent>,
     };
 
     const char *get_careSkillAttributes(RE::ActorValue skillName) {
-        return iniFile.GetValue("SkillSettings", get_ActorValueFullName(skillName));
+        return iniFile.GetValue("SkillSettings", get_ActorValueFullName(skillName), "Luck, Luck, Luck");
     };
 
     const char *get_ActorValueFullName(RE::ActorValue actorValue) {
-        auto actorValueFullName = RE::ActorValueList::GetSingleton()->GetActorValue(actorValue)->fullName;
+        auto &actorValueFullName = RE::ActorValueList::GetSingleton()->GetActorValue(actorValue)->fullName;
         return actorValueFullName.c_str();
-    };
-
-    RE::BSScript::Internal::VirtualMachine &GetVM() {
-        auto *pVM = RE::BSScript::Internal::VirtualMachine::GetSingleton();
-        if (!pVM) throw std::runtime_error("could not get papyrus VirtualMachine");
-        return *pVM;
-    };
-
-    bool myCallPapyrus(RE::BSFixedString a_className, RE::BSFixedString a_fnName, RE::BSScript::IFunctionArguments *a_args) {
-        logger::info("{}.{}...", a_className.c_str(), a_fnName.c_str());
-        RE::BSTSmartPointer<RE::BSScript::IStackCallbackFunctor> a_result;
-        bool res = GetVM().DispatchStaticCall(a_className, a_fnName, a_args, a_result);
-        logger::info("{}.{} {}", a_className.c_str(), a_fnName.c_str(), res ? "done" : "error");
-        return res;
-    };
-    
-   
-
-    
-    void PapyrusTest(){
-        RE::BSScript::IFunctionArguments *a_args = RE::MakeFunctionArguments<RE::BSFixedString>(std::move("This is a Test"));
-        myCallPapyrus("Debug","Notification",a_args);
     };
 
     void SetupLog() {
@@ -148,14 +111,24 @@ class cGlobalVariables : public RE::BSTEventSink<RE::MenuOpenCloseEvent>,
     void LoadSettings() {
         iniFile.LoadFile(L"Data/SKSE/Plugins/CARE.ini");
         const char *careBaseSettings = iniFile.GetValue("BaseSettings", "BaseAttributes");
-        careSkillTreshold = std::atoi(iniFile.GetValue("BaseSettings", "SkillThreshold"));
-        careMaximumAttributeLevel = std::atoi(iniFile.GetValue("BaseSettings", "MaximumAttributeLevel"));
+        if (careBaseSettings) {
+            careBaseAttributes = split(careBaseSettings, ',');
+        }
         const char *careMaleSettings = iniFile.GetValue("SexSettings", "Male");
+        if (careMaleSettings) {
+            careMaleAttributes = split(careMaleSettings, ',');
+        }
         const char *careFemaleSettings = iniFile.GetValue("SexSettings", "Female");
-        careBaseAttributes = split(careBaseSettings, ',');
-        careMaleAttributes = split(careMaleSettings, ',');
-        careFemaleAttributes = split(careFemaleSettings, ',');
-
+        if (careFemaleSettings) {
+            careFemaleAttributes = split(careFemaleSettings, ',');
+        }
+        if (iniFile.GetValue("BaseSettings", "SkillThreshold")) {
+            careSkillTreshold = std::atoi(iniFile.GetValue("BaseSettings", "SkillThreshold"));
+        }
+        if (iniFile.GetValue("BaseSettings", "MaximumAttributeLevel")) {
+            careMaximumAttributeLevel = std::atoi(iniFile.GetValue("BaseSettings", "MaximumAttributeLevel"));
+        }
+        
         // Get reward values from ini file
         baseSprintStaminaDrain = std::stof(iniFile.GetValue("GameSettings", "skyrimSprintStaminaDrain"));
         baseFavorGoldRewardSmall = std::stof(iniFile.GetValue("GameSettings", "skyrimFavorGoldRewardSmall"));
@@ -173,9 +146,6 @@ class cGlobalVariables : public RE::BSTEventSink<RE::MenuOpenCloseEvent>,
         baseQuestReward02Medium = std::stof(iniFile.GetValue("GameSettings", "skyrimQuestReward02Medium"));
         baseQuestReward03Large = std::stof(iniFile.GetValue("GameSettings", "skyrimQuestReward03Large"));
         baseQuestReward04Wow = std::stof(iniFile.GetValue("GameSettings", "skyrimQuestReward04Wow"));
-
-
-        
     };
 
     void LoadForms() {
@@ -234,54 +204,26 @@ class cGlobalVariables : public RE::BSTEventSink<RE::MenuOpenCloseEvent>,
             iniFile.SetValue("GameSettings", "skyrimSprintStaminaDrain", floatToChar(skyrimSprintStaminaDrain->data.f));
         };
         iniFile.SaveFile(L"Data/SKSE/Plugins/CARE.ini");
-        
-        
     };
 
     void SetupAttributes() {
-
-        
-
-        //careStr->value = std::stof(careBase[0]);
-        //careFor->value = std::stof(careBase[1]);
-        //careEnd->value = std::stof(careBase[2]);
-        //careInt->value = std::stof(careBase[3]);
-        //careWis->value = std::stof(careBase[4]);
-        //carePer->value = std::stof(careBase[5]);
-        //careAgi->value = std::stof(careBase[6]);
-        //careDex->value = std::stof(careBase[7]);
-        //careCha->value = std::stof(careBase[8]);
-        //careLuk->value = std::stof(careBase[9]);
-
-        auto *player = RE::PlayerCharacter::GetSingleton();
         std::vector<std::string> careSexAttributes;
+        auto *player = RE::PlayerCharacter::GetSingleton();
+        if (!player) {
+            return;
+        }
         bool isMale = player->GetActorBase()->GetSex() == RE::SEX::kMale;
         if (isMale) {
             careSexAttributes = careMaleAttributes;
-            //careStr->value += 1.0f;
-            //careFor->value += 1.0f;
-            //careWis->value += 1.0f;
-            //careDex->value += 1.0f;
-            //careLuk->value += 1.0f;
-            logger::info("Character is male");
         } else {
             careSexAttributes = careFemaleAttributes;
-            //careEnd->value += 1.0f;
-            //careInt->value += 1.0f;
-            //carePer->value += 1.0f;
-            //careAgi->value += 1.0f;
-            //careCha->value += 1.0f;
-            logger::info("Character is female");
-        };
-        logger::info("Player Race {}", player->GetRace()->GetFormEditorID());
-        //const char *careRaceSettings = careRaceMatrix->find(player->GetRace()->GetFormEditorID())->second;
-
-        const char *careRaceSettings = get_careRaceSettings(player->GetRace()->GetFormEditorID());  
-        careRaceAttributes = split(careRaceSettings, ',');
+        }
         
+        const char *careRaceSettings = get_careRaceSettings(player->GetRace()->GetFormEditorID());
+        if (careRaceSettings) {
+            careRaceAttributes = split(careRaceSettings, ',');
+        }
 
-        //const char *careRaceSettings = careRaceMatrix->find(player->GetRace()->GetFormEditorID())->second;
-        //careRaceAttributes = split(careRaceSettings, ',');
         careStr->value = std::stof(careBaseAttributes[0]) + std::stof(careRaceAttributes[0]) + std::stof(careSexAttributes[0]);
         careFor->value = std::stof(careBaseAttributes[1]) + std::stof(careRaceAttributes[1]) + std::stof(careSexAttributes[1]);
         careEnd->value = std::stof(careBaseAttributes[2]) + std::stof(careRaceAttributes[2]) + std::stof(careSexAttributes[2]);
@@ -296,46 +238,22 @@ class cGlobalVariables : public RE::BSTEventSink<RE::MenuOpenCloseEvent>,
         player->AddPerk(carePERK);
         
         UpdateAttributes();
-
-        //float AVHealth = player ? player->AsActorValueOwner()->GetBaseActorValue(RE::ActorValue::kHealth) : -1.0f;
-        //logger::info("Player has {} Health", AVHealth);
-        // player->GetRace()->fullName;
-
-        //auto playerRace = ;
-
-        //logger::info("{}", playerRace);
-
-        
-        //logger::info("{}", careRaceSettings);
-
-        // AVHealth = AVHealth * (((careFor->value * 5) + 50) / 100);
-        // player->AsActorValueOwner()->SetBaseActorValue(RE::ActorValue::kHealth,AVHealth * (((careFor->value * 5) +
-        // 50) / 100)); player->GetActorBase()->SetActorValue(RE::ActorValue::kHealth, 100.0f);
-        // player->GetActorBase()->SetBaseActorValue(RE::ActorValue::kHealth, 100.0f);
-        // player->AsActorValueOwner()->SetBaseActorValue(RE::ActorValue::kHealth, 100.0f);
-        //float AVHealthNew = player ? player->AsActorValueOwner()->GetBaseActorValue(RE::ActorValue::kHealth) : -1.0f;
-        //
-        //logger::info("Magnitude is {}", careSPEL->effects[0]->GetMagnitude());
-        //careSPEL->effects[0]->effectItem.magnitude = 10.0f;
-        //logger::info("Magnitude is {}", careSPEL->effects[0]->GetMagnitude());
-        //
-        //logger::info("Player has {} Health", AVHealthNew);
     };
 
     void UpdateAttributes(int playerLevel = 0) {
         auto *player = RE::PlayerCharacter::GetSingleton();
-        //player->RemovePerk(carePERK);
+        if (!player) {
+            return;
+        }
         player->RemoveSpell(careSPEL);
         if (playerLevel == 0) {
             playerLevel = player->GetLevel();
-        };
-        logger::info("Player is level {}", playerLevel);
+        }
         float careForOffset = (careFor->value - 10.0f) / 2.0f;
         float careEndOffset = (careFor->value - 10.0f) / 2.0f;
         float careIntOffset = (careInt->value - 10.0f) / 2.0f;
         float careAgiOffset = (careAgi->value - 10.0f) / 2.0f;
-        logger::info("Fortify Offset is {}", careForOffset);
-        logger::info("HP Magnitude is {}", std::max(0.0f, careForOffset) * playerLevel);
+
 
         // Strength
         // Melee Damage is via Perk
@@ -388,34 +306,29 @@ class cGlobalVariables : public RE::BSTEventSink<RE::MenuOpenCloseEvent>,
         // Luck
         // Crit Chance is via Perk
         // Extra Perk is via function
-        skyrimFavorGoldRewardSmall->value = (baseFavorGoldRewardSmall * (((careLuk->value - 10.0f) * 5.0f) / 100.0f) + 1.0f);
-        skyrimFavorRewardBribe->value = (baseFavorRewardBribe * (((careLuk->value - 10.0f) * 5.0f) / 100.0f) + 1.0f);
-        skyrimFavorRewardIntimidate->value = (baseFavorRewardIntimidate * (((careLuk->value - 10.0f) * 5.0f) / 100.0f) + 1.0f);
-        skyrimFavorRewardLarge->value = (baseFavorRewardLarge * (((careLuk->value - 10.0f) * 5.0f) / 100.0f) + 1.0f);
-        skyrimFavorRewardMedium->value = (baseFavorRewardMedium * (((careLuk->value - 10.0f) * 5.0f) / 100.0f) + 1.0f);
-        skyrimFavorRewardSmall->value = (baseFavorRewardSmall * (((careLuk->value - 10.0f) * 5.0f) / 100.0f) + 1.0f);
-        skyrimMGR11Reward01->value = (baseMGR11Reward01 * (((careLuk->value - 10.0f) * 5.0f) / 100.0f) + 1.0f);
-        skyrimMGR11Reward02->value = (baseMGR11Reward02 * (((careLuk->value - 10.0f) * 5.0f) / 100.0f) + 1.0f);
-        skyrimMGR11Reward03->value = (baseMGR11Reward03 * (((careLuk->value - 10.0f) * 5.0f) / 100.0f) + 1.0f);
-        skyrimMGR11Reward04->value = (baseMGR11Reward04 * (((careLuk->value - 10.0f) * 5.0f) / 100.0f) + 1.0f);
-        skyrimMGR11Reward05->value = (baseMGR11Reward05 * (((careLuk->value - 10.0f) * 5.0f) / 100.0f) + 1.0f);
-        skyrimQuestReward01Small->value = (baseQuestReward01Small * (((careLuk->value - 10.0f) * 5.0f) / 100.0f) + 1.0f);
-        skyrimQuestReward02Medium->value = (baseQuestReward02Medium * (((careLuk->value - 10.0f) * 5.0f) / 100.0f) + 1.0f);
-        skyrimQuestReward03Large->value = (baseQuestReward03Large * (((careLuk->value - 10.0f) * 5.0f) / 100.0f) + 1.0f);
-        skyrimQuestReward04Wow->value = (baseQuestReward04Wow * (((careLuk->value - 10.0f) * 5.0f) / 100.0f) + 1.0f);
-
-        
-        
-
-
-        // careSPEL->effects[2]->effectItem.magnitude = (std::max(0.0f, careAgiOffset) * playerLevel);
-        // logger::info("Current Sprint Stamina Drain is {}", skyrimSprintStaminaDrain->data.f);
-        //player->AddPerk(carePERK);
+        skyrimFavorGoldRewardSmall->value = (baseFavorGoldRewardSmall * ((((careLuk->value - 10.0f) * 5.0f) / 100.0f) + 1.0f));
+        skyrimFavorRewardBribe->value = (baseFavorRewardBribe * ((((careLuk->value - 10.0f) * 5.0f) / 100.0f) + 1.0f));
+        skyrimFavorRewardIntimidate->value = (baseFavorRewardIntimidate * ((((careLuk->value - 10.0f) * 5.0f) / 100.0f) + 1.0f));
+        skyrimFavorRewardLarge->value = (baseFavorRewardLarge * ((((careLuk->value - 10.0f) * 5.0f) / 100.0f) + 1.0f));
+        skyrimFavorRewardMedium->value = (baseFavorRewardMedium * ((((careLuk->value - 10.0f) * 5.0f) / 100.0f) + 1.0f));
+        skyrimFavorRewardSmall->value = (baseFavorRewardSmall * ((((careLuk->value - 10.0f) * 5.0f) / 100.0f) + 1.0f));
+        skyrimMGR11Reward01->value = (baseMGR11Reward01 * ((((careLuk->value - 10.0f) * 5.0f) / 100.0f) + 1.0f));
+        skyrimMGR11Reward02->value = (baseMGR11Reward02 * ((((careLuk->value - 10.0f) * 5.0f) / 100.0f) + 1.0f));
+        skyrimMGR11Reward03->value = (baseMGR11Reward03 * ((((careLuk->value - 10.0f) * 5.0f) / 100.0f) + 1.0f));
+        skyrimMGR11Reward04->value = (baseMGR11Reward04 * ((((careLuk->value - 10.0f) * 5.0f) / 100.0f) + 1.0f));
+        skyrimMGR11Reward05->value = (baseMGR11Reward05 * ((((careLuk->value - 10.0f) * 5.0f) / 100.0f) + 1.0f));
+        skyrimQuestReward01Small->value = (baseQuestReward01Small * ((((careLuk->value - 10.0f) * 5.0f) / 100.0f) + 1.0f));
+        skyrimQuestReward02Medium->value = (baseQuestReward02Medium * ((((careLuk->value - 10.0f) * 5.0f) / 100.0f) + 1.0f));
+        skyrimQuestReward03Large->value = (baseQuestReward03Large * ((((careLuk->value - 10.0f) * 5.0f) / 100.0f) + 1.0f));
+        skyrimQuestReward04Wow->value = (baseQuestReward04Wow * ((((careLuk->value - 10.0f) * 5.0f) / 100.0f) + 1.0f));
         player->AddSpell(careSPEL);
     };
 
     void ExtraPerkRoll(){
         auto *player = RE::PlayerCharacter::GetSingleton();
+        if (!player) {
+            return;
+        }
         std::random_device dev;
         std::mt19937 rng(dev());
         std::uniform_int_distribution<std::mt19937::result_type> careLukPerkChanceRoll(1, 100);
@@ -425,8 +338,7 @@ class cGlobalVariables : public RE::BSTEventSink<RE::MenuOpenCloseEvent>,
             careLukPerkChance->value = ((careLuk->value - 10.0f) * 1.5f);
         } else {
             careLukPerkChance->value += ((careLuk->value - 10.0f) * 1.5f);
-        };
-
+        }
     };
 
     class MessageBoxCallback : public RE::IMessageBoxCallback {
@@ -434,7 +346,6 @@ class cGlobalVariables : public RE::BSTEventSink<RE::MenuOpenCloseEvent>,
         MessageBoxCallback(std::function<void(unsigned int)> callback) : callback{callback} {}
         ~MessageBoxCallback() override {}
         void Run(RE::IMessageBoxCallback::Message message) override { callback(static_cast<unsigned int>(message)); }
-
     private:
         std::function<void(unsigned int)> callback;
     };
@@ -453,24 +364,12 @@ class cGlobalVariables : public RE::BSTEventSink<RE::MenuOpenCloseEvent>,
                         messageBox->buttonText.push_back(text.c_str());
                     }
                     messageBox->QueueMessage();
-                    
-                    
-                    //if (gameSettings) {
-                    //    auto sOk = gameSettings->GetSetting("sOk");
-                    //    if (sOk) {
-                    //        messageBox->buttonText.push_back(sOk->GetString());
-                    //        messageBox->buttonText.push_back(RE::BSString("Test"));
-                    //
-                    //        messageBox->QueueMessage();
-                    //    }
-                    //}
                 }
             }
         }
     };
 
     void AttributeSelect(int selection) {
-        //RE::DebugNotification(attributeButtons[selection].c_str());
         std::string selectedAttribute = skillAttributes[selection];
         if (selectedAttribute == "Strength" && careStr->value < careMaximumAttributeLevel) {
             careStr->value += 1;
@@ -511,50 +410,31 @@ class cGlobalVariables : public RE::BSTEventSink<RE::MenuOpenCloseEvent>,
 
 
     RE::BSEventNotifyControl ProcessEvent(const RE::MenuOpenCloseEvent *event, RE::BSTEventSource<RE::MenuOpenCloseEvent> *) {
-        //auto *player = RE::PlayerCharacter::GetSingleton();
         if (event->menuName == "RaceSex Menu" && !event->opening) {
-            // RE::PlayerCharacter::GetSingleton()->GetActorBase()->SetBaseActorValue(RE::ActorValue::kHealth, 200.0f);
-            SetupAttributes();
             RE::DebugMessageBox(
                 "Welcome to Core Attribute Remaster & Expansion, or CARE for short. Your Attributes will increase at "
                 "certain thresholds, and you can find your current attributes and their effects in the MCM. Please "
                 "note that Attributes higher than 20 are not inteded.");
+            SetupAttributes();
         };
 
-        if (event->menuName == "ContainerMenu" && !event->opening) {
-            // RE::PlayerCharacter::GetSingleton()->GetActorBase()->SetBaseActorValue(RE::ActorValue::kHealth, 200.0f);
-            //ShowMessageBox("Test", std::vector {std::string("Option 0"), std::string("Option1")}, [&](unsigned int result) {ButtonSelect(result);});
-        };
-        
-        // if (event->opening)
-        //     logger::info("OPEN MENU {}", event->menuName);
-        // else
-        //     logger::info("CLOSING MENU {}", event->menuName);
         return RE::BSEventNotifyControl::kContinue;
     }
 
     RE::BSEventNotifyControl ProcessEvent(const RE::LevelIncrease::Event *event, RE::BSTEventSource<RE::LevelIncrease::Event> *) {
-        // event->player->GetName();
-        logger::info("{} got to level {}", event->player->GetName(), event->newLevel);
         UpdateAttributes(event->newLevel);
         ExtraPerkRoll();
         return RE::BSEventNotifyControl::kContinue;
     };
 
-    RE::BSEventNotifyControl ProcessEvent(const RE::TESHitEvent *event, RE::BSTEventSource<RE::TESHitEvent> *) {
-        // event->player->GetName();
-        // event->cause->GetName();
-        // event->target->GetName();
-        logger::info("{} hit the following NPC {}", event->cause->GetName(), event->target->GetName());
-        return RE::BSEventNotifyControl::kContinue;
-    };
-
     RE::BSEventNotifyControl ProcessEvent(const RE::SkillIncrease::Event *event, RE::BSTEventSource<RE::SkillIncrease::Event> *) {
         auto *player = RE::PlayerCharacter::GetSingleton();
-        float increasedSkill = player->AsActorValueOwner()->GetActorValue(event->actorValue);
-        if (static_cast<int>(increasedSkill) % careSkillTreshold == 0) {
-            skillAttributes = split(get_careSkillAttributes(event->actorValue), ',');
-            ShowMessageBox("Your skill increased! Select the Attribute to increase!", skillAttributes, [&](unsigned int result) { AttributeSelect(result); });
+        if (player) {
+            float increasedSkill = player->AsActorValueOwner()->GetActorValue(event->actorValue);
+            if (static_cast<int>(increasedSkill) % careSkillTreshold == 0) {
+                skillAttributes = split(get_careSkillAttributes(event->actorValue), ',');
+                ShowMessageBox("Your skill increased! Select the Attribute to increase!", skillAttributes, [&](unsigned int result) { AttributeSelect(result); });
+            }
         }
         return RE::BSEventNotifyControl::kContinue;
     };
@@ -568,45 +448,15 @@ cGlobalVariables gMyModInstance;
 SKSEPluginLoad(const SKSE::LoadInterface *skse) {
     SKSE::Init(skse);
     gMyModInstance.SetupLog();
-    
-
-    //auto *eventSink = new OurEventSink();
-    auto *eventSourceHolder = RE::ScriptEventSourceHolder::GetSingleton();
- 
-    //eventSourceHolder->AddEventSink<RE::LevelIncrease::Event>(eventSink);
-    eventSourceHolder->AddEventSink<RE::TESHitEvent>(&gMyModInstance);
-    RE::LevelIncrease::GetEventSource()->AddEventSink<RE::LevelIncrease::Event>(&gMyModInstance);
+        RE::LevelIncrease::GetEventSource()->AddEventSink<RE::LevelIncrease::Event>(&gMyModInstance);
     RE::SkillIncrease::GetEventSource()->AddEventSink<RE::SkillIncrease::Event>(&gMyModInstance);
     RE::UI::GetSingleton()->AddEventSink<RE::MenuOpenCloseEvent>(&gMyModInstance);
     
-    // This example prints "Hello, world!" to the Skyrim ~ console.
-    // To view it, open the ~ console from the Skyrim Main Menu.
     SKSE::GetMessagingInterface()->RegisterListener([](SKSE::MessagingInterface::Message *message) {
         if (message->type == SKSE::MessagingInterface::kDataLoaded) {
-            RE::ConsoleLog::GetSingleton()->Print("Hello, world!");
             gMyModInstance.LoadForms();
-            //LoadSettings();
             gMyModInstance.LoadSettings();
-            //if (const auto dataHandler = RE::TESDataHandler::GetSingleton()) {
-            //    if (const auto mod = dataHandler->LookupLoadedLightModByName("AVA SKSE Test.esp")) {
-            //        uint32_t formID = 0xFE000000 | (mod->smallFileCompileIndex << 12) | 0x800;
-            //        RE::TESGlobal *globalVar = RE::TESForm::LookupByID<RE::TESGlobal>(formID);
-            //        if (globalVar) {
-            //            globalVar->value = 42.0f;
-            //        };
-            //    }
-            //}
-
-            //RE::TESGlobal *globalVar = RE::TESForm::LookupByEditorID<RE::TESGlobal>("hajoBaseAttFor");
-            //if (globalVar) {
-            //    globalVar->value = 12.0f;
-            //};
-            
-            RE::ConsoleLog::GetSingleton()->Print("WHY ARENT YOU CHANGED!");
         }
     });
-
-    logger::info("Test");
-
     return true;
 }
