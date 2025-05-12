@@ -401,6 +401,8 @@ class cGlobalVariables : public RE::BSTEventSink<RE::MenuOpenCloseEvent>,
         } else if (selectedAttribute == "Luck" && careLuk->value < careMaximumAttributeLevel) {
             careLuk->value += 1;
             RE::DebugNotification("My Luck has increased!");
+        } else if (selectedAttribute == "None") {
+            RE::DebugNotification("No Attribute has increased!");
         } else {
             RE::DebugNotification("You cannot increase an Attribute above 20!");
             ShowMessageBox("Your skill increased! Select the Attribute to increase!", skillAttributes, [&](unsigned int result) { AttributeSelect(result); });
@@ -410,7 +412,8 @@ class cGlobalVariables : public RE::BSTEventSink<RE::MenuOpenCloseEvent>,
 
 
     RE::BSEventNotifyControl ProcessEvent(const RE::MenuOpenCloseEvent *event, RE::BSTEventSource<RE::MenuOpenCloseEvent> *) {
-        if (event->menuName == "RaceSex Menu" && !event->opening) {
+        auto *player = RE::PlayerCharacter::GetSingleton();
+        if (event->menuName == "RaceSex Menu" && !event->opening && player->GetLevel() == 1) {
             RE::DebugMessageBox(
                 "Welcome to Core Attribute Remaster & Expansion, or CARE for short. Your Attributes will increase at "
                 "certain thresholds, and you can find your current attributes and their effects in the MCM. Please "
@@ -430,9 +433,10 @@ class cGlobalVariables : public RE::BSTEventSink<RE::MenuOpenCloseEvent>,
     RE::BSEventNotifyControl ProcessEvent(const RE::SkillIncrease::Event *event, RE::BSTEventSource<RE::SkillIncrease::Event> *) {
         auto *player = RE::PlayerCharacter::GetSingleton();
         if (player) {
-            float increasedSkill = player->AsActorValueOwner()->GetActorValue(event->actorValue);
+            float increasedSkill = player->AsActorValueOwner()->GetBaseActorValue(event->actorValue);
             if (static_cast<int>(increasedSkill) % careSkillTreshold == 0) {
                 skillAttributes = split(get_careSkillAttributes(event->actorValue), ',');
+                skillAttributes.push_back(std::string("None"));
                 ShowMessageBox("Your skill increased! Select the Attribute to increase!", skillAttributes, [&](unsigned int result) { AttributeSelect(result); });
             }
         }
