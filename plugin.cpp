@@ -56,6 +56,8 @@ class cGlobalVariables : public RE::BSTEventSink<RE::MenuOpenCloseEvent>,
     float baseQuestReward04Wow;
     int careSkillTreshold = 50;
     int careMaximumAttributeLevel = 20;
+    int carePopUpEnabled = 1;
+    const char *careExplanationText = "You broke the CARE INI file.";
     std::vector<std::string> skillAttributes;
     CSimpleIniA iniFile;
     std::vector<std::string> careBaseAttributes = {"9", "9", "9", "9", "9", "9", "9", "9", "9", "9"};
@@ -127,6 +129,12 @@ class cGlobalVariables : public RE::BSTEventSink<RE::MenuOpenCloseEvent>,
         }
         if (iniFile.GetValue("BaseSettings", "MaximumAttributeLevel")) {
             careMaximumAttributeLevel = std::atoi(iniFile.GetValue("BaseSettings", "MaximumAttributeLevel"));
+        }
+        if (iniFile.GetValue("BaseSettings", "PopUpEnabled")) {
+            carePopUpEnabled = std::atoi(iniFile.GetValue("BaseSettings", "PopUpEnabled"));
+        }
+        if (iniFile.GetValue("BaseSettings", "ExplanationText")) {
+            careExplanationText = iniFile.GetValue("BaseSettings", "ExplanationText");
         }
         
         // Get reward values from ini file
@@ -414,10 +422,11 @@ class cGlobalVariables : public RE::BSTEventSink<RE::MenuOpenCloseEvent>,
     RE::BSEventNotifyControl ProcessEvent(const RE::MenuOpenCloseEvent *event, RE::BSTEventSource<RE::MenuOpenCloseEvent> *) {
         auto *player = RE::PlayerCharacter::GetSingleton();
         if (event->menuName == "RaceSex Menu" && !event->opening && player->GetLevel() == 1) {
-            RE::DebugMessageBox(
-                "Welcome to Core Attribute Remaster & Expansion, or CARE for short. Your Attributes will increase at "
-                "certain thresholds, and you can find your current attributes and their effects in the MCM. Please "
-                "note that Attributes higher than 20 are not inteded.");
+            if (carePopUpEnabled == 1) {
+                RE::DebugMessageBox(careExplanationText);
+            } else {
+                RE::DebugNotification("CARE initialized!");
+            }
             SetupAttributes();
         };
 
